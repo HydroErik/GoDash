@@ -1,18 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"context"
 
+	"hydrodash/mongDrive"
 
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"hydrodash/mongDrive"
 )
 
 var templates = template.Must(template.ParseFiles("../Templates/index.html", "../Templates/login.html"))
@@ -81,21 +81,17 @@ func main() {
 
 	for _, db := range <-dbList {
 		fmt.Println(db)
-	
+
 	}
 
-
-	go mongDrive.GetAgentReports(client, "agent_Go4", rep_chan )
+	go mongDrive.GetAgentReports(client, "agent_Go4", rep_chan)
 	repLst := rep_chan
 
 	for _, rep := range <-repLst {
 		fmt.Println(rep)
-	
+
 	}
 
-
-
-	
 	//http.HandleFunc("/", makeHandler(indexHanlder))
 	//http.HandleFunc("/login/", loginHandler)
 	//http.HandleFunc("/validate/", validateHandler)

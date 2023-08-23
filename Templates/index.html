@@ -8,6 +8,9 @@
 
 <body>
     <h1>This will be the profile page</h1>
+    {{range .}}
+        <div><a href="agents/{{.}}">{{.}}</a></div>
+    {{end}}
 </body>
 </html>
 

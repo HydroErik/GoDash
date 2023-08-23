@@ -9,8 +9,16 @@
 <body>
     <h1>This is the login page </h1>
 
-    <form action="/validate/" method="POST">
-        <div><input type="submit" value="Save"></div>
+    <form action="/validate/" method="post">
+        <p>
+            <label for="username">Username: </label>
+            <input type="text" id="username" name="username"/>
+        </p><p>
+            <label for="pass">Password: </label>
+            <input type="password" id="pass" name="password" required/>
+        </p>
+        
+        <div><input type="submit" value="Submit"></div>
     </form>
 </body>
 </html>

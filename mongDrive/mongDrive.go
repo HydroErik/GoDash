@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+
 	//"os"
 	//"reflect"
 	"time"
@@ -176,19 +177,23 @@ func GetServerReports(client *mongo.Client, servers chan []Server) {
 func GetAuths(client *mongo.Client) map[string]User {
 	reportCol := client.Database("GoUsers").Collection("gocredentials")
 	cur, err := reportCol.Find(context.TODO(), bson.D{})
-	if err != nil {log.Fatal(err)}
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var userMap = make(map[string]User)
 
 	for cur.Next(context.TODO()) {
 		dbUser := bson.M{}
 		err := cur.Decode(&dbUser)
-		if err != nil{log.Fatal(err)}
+		if err != nil {
+			log.Fatal(err)
+		}
 		newUser := User{
-			Email: dbUser["email"].(string),
+			Email:    dbUser["email"].(string),
 			Username: dbUser["username"].(string),
 			Password: dbUser["password"].(string),
-			Name: dbUser["name"].(string),
+			Name:     dbUser["name"].(string),
 		}
 		userMap[newUser.Username] = newUser
 	}

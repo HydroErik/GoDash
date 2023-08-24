@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
-	"math/rand"
 
 	"hydrodash/mongDrive"
 
@@ -16,13 +16,13 @@ import (
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var u = uint8(rand.Intn(255))
 
 var (
-	
-	key = []byte{239,  57, 183,  33, 121, 175, 214,  u,  52, 235,  33, 167,  74,  91, 153,  39 }
+	key   = []byte{239, 57, 183, 33, 121, 175, 214, u, 52, 235, 33, 167, 74, 91, 153, 39}
 	store = sessions.NewCookieStore(key)
 )
 
@@ -44,12 +44,12 @@ type Session struct {
 }
 
 type Agent struct {
-	Name        string
-	Mongo       *mongo.Client
-	ReportFunc  func(*mongo.Client, string, string, chan map[string]mongDrive.Report)
-	NamesFunc   func(*mongo.Client, string, chan map[string]bool)
-	ReportErr   chan map[string]bool
-	Reports     chan map[string]mongDrive.Report
+	Name       string
+	Mongo      *mongo.Client
+	ReportFunc func(*mongo.Client, string, string, chan map[string]mongDrive.Report)
+	NamesFunc  func(*mongo.Client, string, chan map[string]bool)
+	ReportErr  chan map[string]bool
+	Reports    chan map[string]mongDrive.Report
 }
 
 func (a Agent) reportList() {
@@ -75,23 +75,62 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data any) {
 // Handler Functions///////////////////////////////////////////////////////////////////////
 func indexHanlder(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("index handler called")
-	renderTemplate(w, "index", agentList)
+	session, _ := store.Get(r, "hydro-cookie")
+	var usrName string
+	usrName, ok := session.Values["usrName"].(string)
+	if !ok {
+		usrName = "User Not Found"
+	}
+	var data = struct {
+		Name      string
+		AgentList []string
+	}{
+		Name:      usrName,
+		AgentList: agentList,
+	}
+	renderTemplate(w, "index", data)
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("Login handler Called")
-	renderTemplate(w, "login", "")
+	session, _ := store.Get(r, "hydro-cookie")
+	AuthEr, ok := session.Values["authError"]
+	if !ok {
+		renderTemplate(w, "login", "")
+	} else {
+		renderTemplate(w, "login", AuthEr)
+	}
 }
 
 func validateHandler(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("Validate Handler Called")
-	session, _ := store.Get(r, "cookie-name")
-	_ = r.ParseForm()
-	fmt.Println(r.Form["Username"])
-	fmt.Println(r.Body)
-	fmt.Println(r.PostForm)
-    session.Values["authenticated"] = true
-    session.Save(r, w)
+	session, _ := store.Get(r, "hydro-cookie")
+	err := r.ParseForm()
+	if err != nil {
+		session.Values["authError"] = "Server Error Parsing From Submission:\n" + err.Error()
+		session.Save(r, w)
+		http.Redirect(w, r, "/login/", http.StatusFound)
+	}
+	usrNme := r.PostForm["username"][0]
+	pswrdRaw := r.PostForm["password"][0]
+	curUser, ok := authDict[usrNme]
+	if !ok {
+		session.Values["authError"] = "Username Not Found"
+		session.Save(r, w)
+		http.Redirect(w, r, "/login/", http.StatusFound)
+	}
+	pasCrypt := curUser.Password
+	err = bcrypt.CompareHashAndPassword([]byte(pasCrypt), []byte(pswrdRaw))
+	if err != nil {
+		session.Values["authError"] = "Incorect Password"
+		session.Save(r, w)
+		http.Redirect(w, r, "/login/", http.StatusFound)
+	}
+	session.Values["usrName"] = curUser.Name
+
+	//Set auth to true
+	session.Values["authenticated"] = true
+	session.Save(r, w)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -100,24 +139,23 @@ func agentHandler(w http.ResponseWriter, r *http.Request, agentName string) {
 	agent := agents[a]
 	agent.reportList()
 	orgNames := map[string][]string{"Error": nil, "Working": nil}
-	
+
 	//Parse reports into lists of working or not
-	for key, elm := range <- agent.ReportErr{
-		if elm{
+	for key, elm := range <-agent.ReportErr {
+		if elm {
 			orgNames["Error"] = append(orgNames["Error"], key)
-		}else{
+		} else {
 			orgNames["Working"] = append(orgNames["Working"], key)
 		}
 	}
 
-
 	data := struct {
 		Db      string
-		Error []string
+		Error   []string
 		Working []string
 	}{
 		Db:      a,
-		Error: orgNames["Error"],
+		Error:   orgNames["Error"],
 		Working: orgNames["Working"],
 	}
 	renderTemplate(w, "agents", data)
@@ -134,7 +172,7 @@ func reportHandler(w http.ResponseWriter, r *http.Request, path []string) {
 // Handler Makers//////////////////////////////////////////////////////////////////////////////
 func makeHandler(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := store.Get(r, "cookie-name")
+		session, _ := store.Get(r, "hydro-cookie")
 
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
 			fmt.Println("Redirecting per auth")
@@ -146,7 +184,7 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 
 func makeReportHandler(fn func(http.ResponseWriter, *http.Request, []string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := store.Get(r, "cookie-name")
+		session, _ := store.Get(r, "hydro-cookie")
 
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
 			fmt.Println("Redirecting per auth")
@@ -164,7 +202,7 @@ func makeReportHandler(fn func(http.ResponseWriter, *http.Request, []string)) ht
 
 func makeAgentHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := store.Get(r, "cookie-name")
+		session, _ := store.Get(r, "hydro-cookie")
 
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
 			fmt.Println("Redirecting per auth")
@@ -182,6 +220,7 @@ func makeAgentHandler(fn func(http.ResponseWriter, *http.Request, string)) http.
 // Main//////////////////////////////////////////////////////////////////////////////////////////////////////
 func main() {
 	//Use .env for consection string
+
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
 	}
@@ -198,7 +237,6 @@ func main() {
 
 	authDict = mongDrive.GetAuths(client)
 
-
 	go mongDrive.GetDBNames(client, db_chan)
 	dbList := db_chan
 
@@ -208,7 +246,7 @@ func main() {
 		if len(split) > 1 && split[1] != "server" {
 			agentList = append(agentList, db)
 			//Each agent gets its own set of chanels and goroutines that we start here.
-			newAgent := Agent{Name: db, Mongo: client, ReportFunc: mongDrive.GetAgentReports, NamesFunc: mongDrive.GetAgentReportList,  Reports: make(chan map[string]mongDrive.Report), ReportErr: make(chan map[string]bool)}
+			newAgent := Agent{Name: db, Mongo: client, ReportFunc: mongDrive.GetAgentReports, NamesFunc: mongDrive.GetAgentReportList, Reports: make(chan map[string]mongDrive.Report), ReportErr: make(chan map[string]bool)}
 			agents[db] = newAgent
 		}
 	}

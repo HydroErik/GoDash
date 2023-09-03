@@ -35,7 +35,7 @@ var templates = template.Must(template.ParseFiles(
 	"../Templates/reports.html",
 ))
 
-// a authenticated c cookie, u username, e email
+// a authenticated c cookie, u username, e email new comment
 type Session struct {
 	Auth     bool
 	Cookie   []byte
@@ -94,6 +94,13 @@ func indexHanlder(w http.ResponseWriter, r *http.Request) {
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("Login handler Called")
 	session, _ := store.Get(r, "hydro-cookie")
+
+	//If already authenticated push to index
+	val, ok := session.Values["authenticated"].(bool)
+	if ok && val {
+		http.Redirect(w, r, "/", http.StatusFound)
+	}
+
 	AuthEr, ok := session.Values["authError"]
 	if !ok {
 		renderTemplate(w, "login", "")
@@ -167,6 +174,22 @@ func reportHandler(w http.ResponseWriter, r *http.Request, path []string) {
 	agents[agentName].singleReport(reportName)
 	var report = <-agents[agentName].Reports
 	renderTemplate(w, "reports", report[reportName])
+}
+
+func logoutHandler(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "hydro-cookie")
+	auth, ok := session.Values["authenticated"].(bool)
+	fmt.Println("Logout Called")
+	fmt.Println(auth)
+	fmt.Println(ok)
+	if auth && ok {
+		session.Values["authenticated"] = false
+		session.Save(r, w)
+		http.Redirect(w, r, "/login/", http.StatusFound)
+	} else {
+		http.NotFound(w, r)
+	}
+
 }
 
 // Handler Makers//////////////////////////////////////////////////////////////////////////////
@@ -246,7 +269,13 @@ func main() {
 		if len(split) > 1 && split[1] != "server" {
 			agentList = append(agentList, db)
 			//Each agent gets its own set of chanels and goroutines that we start here.
-			newAgent := Agent{Name: db, Mongo: client, ReportFunc: mongDrive.GetAgentReports, NamesFunc: mongDrive.GetAgentReportList, Reports: make(chan map[string]mongDrive.Report), ReportErr: make(chan map[string]bool)}
+			newAgent := Agent{
+				Name: db, Mongo: client,
+				ReportFunc: mongDrive.GetAgentReports,
+				NamesFunc:  mongDrive.GetAgentReportList,
+				Reports:    make(chan map[string]mongDrive.Report),
+				ReportErr:  make(chan map[string]bool),
+			}
 			agents[db] = newAgent
 		}
 	}
@@ -257,6 +286,7 @@ func main() {
 	http.HandleFunc("/", makeHandler(indexHanlder))
 	http.HandleFunc("/login/", loginHandler)
 	http.HandleFunc("/validate/", validateHandler)
+	http.HandleFunc("/logout/", logoutHandler)
 	http.HandleFunc("/agents/", makeAgentHandler(agentHandler))
 	http.HandleFunc("/reports/", makeReportHandler(reportHandler))
 

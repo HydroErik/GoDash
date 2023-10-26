@@ -33,15 +33,8 @@ var templates = template.Must(template.ParseFiles(
 	"../Templates/login.html",
 	"../Templates/agents.html",
 	"../Templates/reports.html",
+	"../Templates/logout.html",
 ))
-
-// a authenticated c cookie, u username, e email new comment
-type Session struct {
-	Auth     bool
-	Cookie   []byte
-	Username string
-	Email    string
-}
 
 type Agent struct {
 	Name       string
@@ -72,10 +65,22 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data any) {
 	}
 }
 
+// Take in http resopnse writer and set re-validate headers
+func setHeaders(w http.ResponseWriter) http.ResponseWriter {
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1.
+	w.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0.
+	w.Header().Set("Expires", "0")                                         // Proxies.
+	return w
+}
+
 // Handler Functions///////////////////////////////////////////////////////////////////////
 func indexHanlder(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("index handler called")
 	session, _ := store.Get(r, "hydro-cookie")
+	w = setHeaders(w)
+	//	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1.
+	//	w.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0.
+	//	w.Header().Set("Expires", "0")                                         // Proxies.
 	var usrName string
 	usrName, ok := session.Values["usrName"].(string)
 	if !ok {
@@ -94,6 +99,7 @@ func indexHanlder(w http.ResponseWriter, r *http.Request) {
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("Login handler Called")
 	session, _ := store.Get(r, "hydro-cookie")
+	w = setHeaders(w)
 
 	//If already authenticated push to index
 	val, ok := session.Values["authenticated"].(bool)
@@ -142,24 +148,34 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func agentHandler(w http.ResponseWriter, r *http.Request, agentName string) {
+	w = setHeaders(w)
 	a := strings.Split(agentName, "/")[2]
 	agent := agents[a]
 	agent.reportList()
-	orgNames := map[string][]string{"Error": nil, "Working": nil}
+
+	type ReportUtil struct {
+		Key string
+		Mod int
+	}
+
+	orgNames := map[string][]ReportUtil{}
 
 	//Parse reports into lists of working or not
+	i, j := 0, 0
 	for key, elm := range <-agent.ReportErr {
 		if elm {
-			orgNames["Error"] = append(orgNames["Error"], key)
+			orgNames["Error"] = append(orgNames["Error"], ReportUtil{Key: key, Mod: i % 4})
+			i++
 		} else {
-			orgNames["Working"] = append(orgNames["Working"], key)
+			orgNames["Working"] = append(orgNames["Working"], ReportUtil{Key: key, Mod: j % 4})
+			j++
 		}
 	}
 
 	data := struct {
 		Db      string
-		Error   []string
-		Working []string
+		Error   []ReportUtil
+		Working []ReportUtil
 	}{
 		Db:      a,
 		Error:   orgNames["Error"],
@@ -169,6 +185,7 @@ func agentHandler(w http.ResponseWriter, r *http.Request, agentName string) {
 }
 
 func reportHandler(w http.ResponseWriter, r *http.Request, path []string) {
+	w = setHeaders(w)
 	agentName := path[2]
 	reportName := path[3]
 	agents[agentName].singleReport(reportName)
@@ -177,15 +194,14 @@ func reportHandler(w http.ResponseWriter, r *http.Request, path []string) {
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
+
 	session, _ := store.Get(r, "hydro-cookie")
 	auth, ok := session.Values["authenticated"].(bool)
 	fmt.Println("Logout Called")
-	fmt.Println(auth)
-	fmt.Println(ok)
 	if auth && ok {
 		session.Values["authenticated"] = false
 		session.Save(r, w)
-		http.Redirect(w, r, "/login/", http.StatusFound)
+		renderTemplate(w, "logout", "")
 	} else {
 		http.NotFound(w, r)
 	}

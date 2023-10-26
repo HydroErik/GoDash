@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.4/css/bulma.min.css" integrity="sha512-HqxHUkJM0SYcbvxUw5P60SzdOTy/QVwA1JJrvaXJv4q7lmbDZCmZaqz01UPOaQveoxfYRv1tHozWGPMcuTBuvQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -16,14 +16,79 @@
     <div><a href="/">Home</a></div>
     <h1>These pages are for agents specifically it is an overview of there reports</h1>
     {{$a := .Db}}
+    
     <div>
-    {{range .Error}}
-        <a href="/reports/{{$a}}/{{.}}"><p>{{.}}</a> Has Errors!</p>
+    {{range $i, $val := .Error}}
+        {{if eq $val.Mod 0 }}
+            <div class="columns is-mobile">
+                <div class="column">
+                    <div class="card" style="background-color: rgb(206, 104, 104);">
+                        <div class="card-content">
+                          <div class="content">
+                            <a href="/reports/{{$a}}/{{$val.Key}}"><p>{{$val.Key}}</a></p>
+                          </div>
+                        </div>
+                    </div>
+                </div>
+        {{else if lt $val.Mod 3}}
+            <div class="column">
+                <div class="card" style="background-color: rgb(206, 104, 104);">
+                    <div class="card-content">
+                      <div class="content">
+                        <a href="/reports/{{$a}}/{{$val.Key}}"><p>{{$val.Key}}</a></p>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        {{else}}
+                <div class="column">
+                    <div class="card" style="background-color: rgb(206, 104, 104);">
+                        <div class="card-content">
+                          <div class="content">
+                            <a href="/reports/{{$a}}/{{$val.Key}}"><p>{{$val.Key}}</a></p>
+                          </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {{end}}
     {{end}}
     </div>
     <div>
-    {{range .Working}}
-    <p><a href="/reports/{{$a}}/{{.}}">{{.}}</a></p>
+    {{range $i, $val := .Working}}
+    {{if eq $val.Mod 0 }}
+            <div class="columns is-mobile">
+                <div class="column">
+                    <div class="card" style="background-color: rgb(135, 228, 147);">
+                        <div class="card-content">
+                          <div class="content">
+                            <a href="/reports/{{$a}}/{{$val.Key}}"><p>{{$val.Key}}</a></p>
+                          </div>
+                        </div>
+                    </div>
+                </div>
+        {{else if lt $val.Mod 3}}
+            <div class="column">
+                <div class="card" style="background-color: rgb(135, 228, 147);">
+                    <div class="card-content">
+                      <div class="content">
+                        <a href="/reports/{{$a}}/{{$val.Key}}"><p>{{$val.Key}}</a></p>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        {{else}}
+                <div class="column">
+                    <div class="card" style="background-color: rgb(135, 228, 147);">
+                        <div class="card-content">
+                          <div class="content">
+                            <a href="/reports/{{$a}}/{{$val.Key}}"><p>{{$val.Key}}</a></p>
+                          </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {{end}}
     {{end}}
     </div>
     

@@ -9,27 +9,47 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <script type="text/javascript">
+        function preventBack() {
+            window.history.forward(); 
+        }
+          
+        setTimeout("preventBack()", 0);
+          
+        window.onunload = function () { null };
+    </script>
     <title>Login</title>
 </head>
 
 <body>
-    <div class="container is-max-desktop">
+    <div class="container is-max-desktop" style="width: 30%;">
         <h1 class="title is-1">This is the login page </h1>
 
-        <form action="/validate/" method="post">
-            <div class="control">
-                <label class="label" for="username">Username: </label>
-                <input class="input" type="text" id="username" name="username"/>
+        <div class="card">
+            <header class="card-header">
+                <p class="card-header-title">
+                    Log In:
+                </p>
+            </header>
+            <div class="card-content">
+                <div class="content">
+                    <form action="/validate/" method="post">
+                        <div class="control">
+                            <label class="label" for="username">Username: </label>
+                            <input class="input" type="text" id="username" name="username"/>
+                        </div>
+                        <div class="control">
+                            <label class="label" for="pass">Password: </label>
+                            <input class="input" type="password" id="pass" name="password" required/>
+                        </div>    
+                        <div class="control">
+                            <input class="button" type="submit" value="Submit">
+                        </div>
+                    </form>
+                    <p>{{.}}</p>
+                </div>
             </div>
-            <div class="control">
-                <label class="label" for="pass">Password: </label>
-                <input class="input" type="password" id="pass" name="password" required/>
-            </div>    
-            <div class="control">
-                <input class="button" type="submit" value="Submit">
-            </div>
-        </form>
-        <p>{{.}}</p>
+        </div>
     </div>
 </body>
 </html>

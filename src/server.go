@@ -19,6 +19,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// This comment is for a commit
 var u = uint8(rand.Intn(255))
 
 var (

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"hydrodash/mongDrive"
 
@@ -79,9 +80,6 @@ func indexHanlder(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("index handler called")
 	session, _ := store.Get(r, "hydro-cookie")
 	w = setHeaders(w)
-	//	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1.
-	//	w.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0.
-	//	w.Header().Set("Expires", "0")                                         // Proxies.
 	var usrName string
 	usrName, ok := session.Values["usrName"].(string)
 	if !ok {
@@ -257,6 +255,15 @@ func makeAgentHandler(fn func(http.ResponseWriter, *http.Request, string)) http.
 	}
 }
 
+func serverStats() {
+	min := 0
+	for {
+		time.Sleep(60 * time.Second)
+		min ++
+		fmt.Printf("Server running for %d Minutes\n", min)
+	}
+}
+
 // Main//////////////////////////////////////////////////////////////////////////////////////////////////////
 func main() {
 	//Use .env for consection string
@@ -307,5 +314,6 @@ func main() {
 	http.HandleFunc("/agents/", makeAgentHandler(agentHandler))
 	http.HandleFunc("/reports/", makeReportHandler(reportHandler))
 
+	go serverStats()
 	log.Fatal(http.ListenAndServe(":8809", nil))
 }
